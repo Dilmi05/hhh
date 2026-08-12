@@ -88,6 +88,55 @@ const loginUser = async (req, res) => {
   }
 };
 
+// @desc    Google OAuth Auth / Sign-in / Sign-up
+// @route   POST /api/auth/google
+// @access  Public
+const googleAuth = async (req, res) => {
+  try {
+    const { name, email, googleId, picture, department } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Google email is required" });
+    }
+
+    let user = await User.findOne({ email }).populate("savedOpportunities");
+
+    if (user) {
+      if (user.isBlocked) {
+        return res.status(403).json({ message: "Your account has been suspended by administration." });
+      }
+    } else {
+      // Auto-create new user account with Google credentials
+      const randomPassword = Math.random().toString(36).slice(-10) + "G!1";
+      user = await User.create({
+        name: name || email.split("@")[0],
+        email: email,
+        password: randomPassword,
+        role: "student",
+        department: department || "Department of Information & Communication Technology",
+        location: "Matara",
+        interests: ["Scholarships", "Internships"],
+        bio: "Google Authenticated Student Account",
+      });
+    }
+
+    res.status(200).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      department: user.department,
+      location: user.location,
+      interests: user.interests,
+      bio: user.bio,
+      savedOpportunities: user.savedOpportunities || [],
+      token: generateToken(user._id),
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc    Get current user profile
 // @route   GET /api/auth/me
 // @access  Private
@@ -214,6 +263,7 @@ const toggleUserStatus = async (req, res) => {
 module.exports = {
   registerUser,
   loginUser,
+  googleAuth,
   getMe,
   updateProfile,
   toggleSaveOpportunity,

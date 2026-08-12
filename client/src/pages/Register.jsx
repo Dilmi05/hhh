@@ -2,10 +2,10 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
-import { FaUserPlus, FaGraduationCap, FaEnvelope, FaLock, FaUser } from "react-icons/fa";
+import { FaUserPlus, FaGraduationCap, FaEnvelope, FaLock, FaUser, FaTimes, FaUserCheck } from "react-icons/fa";
 
 export default function Register() {
-  const { login, register } = useAuth();
+  const { register, googleLogin } = useAuth();
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
@@ -15,7 +15,8 @@ export default function Register() {
   const [role, setRole] = useState("student");
   const [location, setLocation] = useState("Matara");
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleModalOpen, setGoogleModalOpen] = useState(false);
+  const [customGoogleEmail, setCustomGoogleEmail] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,26 +35,23 @@ export default function Register() {
     }
   };
 
-  const handleGoogleAuth = async () => {
-    setGoogleLoading(true);
-    setTimeout(async () => {
-      // Authenticate / Register with Google OAuth
-      const googleUserEmail = "google.student@fot.ruh.ac.lk";
-      let res = await login(googleUserEmail, "GoogleAuth123!");
-      if (!res.success) {
-        res = await register({
-          name: "Google Student Account",
-          email: googleUserEmail,
-          password: "GoogleAuth123!",
-          department: "Department of Information & Communication Technology",
-          role: "student",
-          location: "Matara",
-        });
-      }
-      setGoogleLoading(false);
-      toast.success("Successfully registered with Google!");
+  const handleGoogleAuthClick = () => {
+    setGoogleModalOpen(true);
+  };
+
+  const executeGoogleLogin = async (selectedEmail, selectedName) => {
+    setLoading(true);
+    setGoogleModalOpen(false);
+    const res = await googleLogin({
+      email: selectedEmail,
+      name: selectedName || selectedEmail.split("@")[0],
+      googleId: "google_" + Date.now(),
+      department: department || "Department of Information & Communication Technology",
+    });
+    setLoading(false);
+    if (res.success) {
       navigate("/opportunities");
-    }, 800);
+    }
   };
 
   return (
@@ -74,8 +72,8 @@ export default function Register() {
         {/* Continue with Google Button */}
         <button
           type="button"
-          onClick={handleGoogleAuth}
-          disabled={googleLoading}
+          onClick={handleGoogleAuthClick}
+          disabled={loading}
           className="w-full py-3 px-4 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl border border-slate-300 shadow-sm transition-all flex items-center justify-center space-x-3 font-outfit"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -84,7 +82,7 @@ export default function Register() {
             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
           </svg>
-          <span>{googleLoading ? "Connecting to Google..." : "Continue with Google"}</span>
+          <span>Continue with Google</span>
         </button>
 
         {/* Divider */}
@@ -196,6 +194,95 @@ export default function Register() {
         </div>
 
       </div>
+
+      {/* GOOGLE OAUTH ACCOUNT SELECTOR MODAL */}
+      {googleModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="glass-panel w-full max-w-md p-6 rounded-3xl border border-slate-200 bg-white space-y-5 shadow-2xl relative">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <h3 className="text-lg font-bold text-slate-900 font-outfit">Sign up with Google</h3>
+              </div>
+              <button onClick={() => setGoogleModalOpen(false)} className="text-slate-400 hover:text-slate-700">
+                <FaTimes />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600">Select a Google Account to register on OpportunityBridge:</p>
+
+            {/* Quick Google Profiles */}
+            <div className="space-y-2">
+              <button
+                onClick={() => executeGoogleLogin("student.google@fot.ruh.ac.lk", "Kasun Perera (Google)")}
+                className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 flex items-center justify-between text-left transition-all group"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-9 h-9 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
+                    K
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 group-hover:text-blue-600">Kasun Perera</p>
+                    <p className="text-[11px] text-slate-500 font-mono">student.google@fot.ruh.ac.lk</p>
+                  </div>
+                </div>
+                <FaUserCheck className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+
+              <button
+                onClick={() => executeGoogleLogin("nimal.tech@gmail.com", "Nimal Silva")}
+                className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 flex items-center justify-between text-left transition-all group"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-9 h-9 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-sm">
+                    N
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 group-hover:text-blue-600">Nimal Silva</p>
+                    <p className="text-[11px] text-slate-500 font-mono">nimal.tech@gmail.com</p>
+                  </div>
+                </div>
+                <FaUserCheck className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+            </div>
+
+            {/* Custom Google Email Entry */}
+            <div className="pt-3 border-t border-slate-100 space-y-3">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Or enter another Google Email:
+              </label>
+              <div className="flex space-x-2">
+                <input
+                  type="email"
+                  placeholder="your.email@gmail.com"
+                  value={customGoogleEmail}
+                  onChange={(e) => setCustomGoogleEmail(e.target.value)}
+                  className="flex-1 bg-white text-slate-900 px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-blue-500"
+                />
+                <button
+                  onClick={() => {
+                    if (!customGoogleEmail.trim()) {
+                      toast.error("Please enter a valid Google email");
+                      return;
+                    }
+                    executeGoogleLogin(customGoogleEmail.trim(), customGoogleEmail.split("@")[0]);
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl font-outfit"
+                >
+                  Register
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

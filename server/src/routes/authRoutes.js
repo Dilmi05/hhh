@@ -3,6 +3,7 @@ const router = express.Router();
 const {
   registerUser,
   loginUser,
+  googleAuth,
   getMe,
   updateProfile,
   toggleSaveOpportunity,
@@ -14,6 +15,7 @@ const { protect, adminOnly } = require("../middleware/authMiddleware");
 
 router.post("/register", registerUser);
 router.post("/login", loginUser);
+router.post("/google", googleAuth);
 router.get("/me", protect, getMe);
 router.put("/profile", protect, updateProfile);
 router.put("/bookmark/:opportunityId", protect, toggleSaveOpportunity);
