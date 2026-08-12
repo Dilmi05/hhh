@@ -1,6 +1,8 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
+const JWT_DEFAULT_SECRET = "ruhuna_tech_faculty_opportunity_bridge_secret_key_2026";
+
 const protect = async (req, res, next) => {
   let token;
 
@@ -20,7 +22,7 @@ const protect = async (req, res, next) => {
   try {
     const decoded = jwt.verify(
       token,
-      process.env.JWT_SECRET || "ruhuna_tech_faculty_opportunity_bridge_secret_key_2026_super_secure"
+      process.env.JWT_SECRET || JWT_DEFAULT_SECRET
     );
     req.user = await User.findById(decoded.id).select("-password");
     if (!req.user) {
@@ -45,7 +47,7 @@ const providerOrAdmin = (req, res, next) => {
   if (req.user && (req.user.role === "provider" || req.user.role === "admin")) {
     next();
   } else {
-    res.status(403).json({ message: "Access denied. Opportunity provider or admin privileges required." });
+    res.status(403).json({ message: "Access denied. Provider or Administrator privileges required." });
   }
 };
 
