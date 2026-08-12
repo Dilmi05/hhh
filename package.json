@@ -5,7 +5,7 @@
   "description": "OpportunityBridge - Platform for Faculty of Technology, University of Ruhuna to discover community opportunities and report access barriers.",
   "main": "server/src/server.js",
   "scripts": {
-    "postinstall": "npm install --prefix server && npm install --prefix client && npm run build --prefix client",
+    "install-all": "npm install && npm install --prefix server && npm install --prefix client",
     "build": "npm run build --prefix client",
     "build-client": "npm run build --prefix client",
     "start": "node server/src/server.js",
