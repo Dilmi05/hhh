@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
@@ -19,6 +19,74 @@ export default function Register() {
   const [googleEmailInput, setGoogleEmailInput] = useState("");
   const [googleNameInput, setGoogleNameInput] = useState("");
 
+  const googleBtnContainerRef = useRef(null);
+
+  // Initialize Google Identity Services (GIS) SDK
+  useEffect(() => {
+    const googleClientId =
+      import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+      "1060018310736-l2r63l6edmjo06.apps.googleusercontent.com";
+
+    const initGoogleGis = () => {
+      if (window.google?.accounts?.id) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: handleGoogleCredentialResponse,
+            auto_select: false,
+          });
+
+          if (googleBtnContainerRef.current) {
+            window.google.accounts.id.renderButton(googleBtnContainerRef.current, {
+              theme: "outline",
+              size: "large",
+              width: "100%",
+              text: "signup_with",
+              shape: "pill",
+            });
+          }
+        } catch (err) {
+          console.warn("Google GIS initialization error:", err.message);
+        }
+      }
+    };
+
+    const timer = setTimeout(initGoogleGis, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleGoogleCredentialResponse = async (response) => {
+    if (!response.credential) return;
+    try {
+      const base64Url = response.credential.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split("")
+          .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+          .join("")
+      );
+
+      const payload = JSON.parse(jsonPayload);
+
+      setLoading(true);
+      const res = await googleLogin({
+        email: payload.email,
+        name: payload.name || payload.email.split("@")[0],
+        googleId: payload.sub,
+        picture: payload.picture,
+        department: department || "Department of Information & Communication Technology",
+      });
+      setLoading(false);
+
+      if (res.success) {
+        navigate("/opportunities");
+      }
+    } catch (err) {
+      toast.error("Failed to parse Google account response");
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -37,7 +105,15 @@ export default function Register() {
   };
 
   const handleGoogleAuthClick = () => {
-    setGoogleModalOpen(true);
+    if (window.google?.accounts?.id) {
+      window.google.accounts.id.prompt((notification) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          setGoogleModalOpen(true);
+        }
+      });
+    } else {
+      setGoogleModalOpen(true);
+    }
   };
 
   const executeGoogleLogin = async (selectedEmail, selectedName) => {
@@ -84,21 +160,25 @@ export default function Register() {
           <p className="text-xs text-slate-500">Join OpportunityBridge • University of Ruhuna</p>
         </div>
 
-        {/* Continue with Google Button */}
-        <button
-          type="button"
-          onClick={handleGoogleAuthClick}
-          disabled={loading}
-          className="w-full py-3 px-4 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl border border-slate-300 shadow-sm transition-all flex items-center justify-center space-x-3 font-outfit cursor-pointer"
-        >
-          <svg className="w-5 h-5" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-          </svg>
-          <span>Continue with Google</span>
-        </button>
+        {/* Real Google Identity Services Button Container */}
+        <div className="space-y-3">
+          <div ref={googleBtnContainerRef} className="w-full flex justify-center min-h-[44px]"></div>
+
+          <button
+            type="button"
+            onClick={handleGoogleAuthClick}
+            disabled={loading}
+            className="w-full py-3 px-4 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl border border-slate-300 shadow-sm transition-all flex items-center justify-center space-x-3 font-outfit cursor-pointer"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+            </svg>
+            <span>Continue with Google</span>
+          </button>
+        </div>
 
         {/* Divider */}
         <div className="relative flex items-center justify-center">
@@ -194,7 +274,7 @@ export default function Register() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md transition-all font-outfit flex items-center justify-center space-x-2"
+            className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md transition-all font-outfit flex items-center justify-center space-x-2 cursor-pointer"
           >
             <FaUserPlus />
             <span>{loading ? "Creating Account..." : "Register Account"}</span>
@@ -210,7 +290,7 @@ export default function Register() {
 
       </div>
 
-      {/* GOOGLE OAUTH REAL ACCOUNT SELECTOR MODAL */}
+      {/* GOOGLE OAUTH POPUP FALLBACK MODAL */}
       {googleModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
           <div className="glass-panel w-full max-w-md p-6 rounded-3xl border border-slate-200 bg-white space-y-5 shadow-2xl relative animate-fadeIn">
@@ -231,10 +311,9 @@ export default function Register() {
             </div>
 
             <p className="text-xs text-slate-600">
-              Enter your Google email to register a unique profile for this device:
+              Choose or enter your Google Account to register on OpportunityBridge:
             </p>
 
-            {/* Custom Real Email Entry Form */}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -262,7 +341,7 @@ export default function Register() {
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Kasun Fernando"
+                  placeholder="e.g. Nipuna Deshan"
                   value={googleNameInput}
                   onChange={(e) => setGoogleNameInput(e.target.value)}
                   className="w-full bg-slate-50 text-slate-900 px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:bg-white focus:outline-none focus:border-blue-500"
@@ -278,23 +357,30 @@ export default function Register() {
               </button>
             </form>
 
-            {/* Quick Teammate Test Profiles */}
             <div className="pt-3 border-t border-slate-100 space-y-2">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Quick Select Teammate Profile:</p>
-              <div className="grid grid-cols-2 gap-2">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Detected Google Accounts on Device:</p>
+              <div className="space-y-1.5">
                 <button
                   type="button"
-                  onClick={() => executeGoogleLogin("teammate1@fot.ruh.ac.lk", "Teammate One")}
-                  className="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 text-left text-xs font-semibold text-slate-700"
+                  onClick={() => executeGoogleLogin("ndsf999@gmail.com", "Nipuna Deshan")}
+                  className="w-full p-2.5 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 flex items-center justify-between text-xs font-semibold text-slate-700 transition-all"
                 >
-                  👤 teammate1@fot.ruh.ac.lk
+                  <div className="flex items-center space-x-2">
+                    <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold">N</span>
+                    <span>Nipuna Deshan (ndsf999@gmail.com)</span>
+                  </div>
+                  <span className="text-[10px] text-blue-600 font-mono">Connect</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => executeGoogleLogin("teammate2@fot.ruh.ac.lk", "Teammate Two")}
-                  className="p-2 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 text-left text-xs font-semibold text-slate-700"
+                  onClick={() => executeGoogleLogin("ndsf999cyber1@gmail.com", "Nipuna Deshan")}
+                  className="w-full p-2.5 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 flex items-center justify-between text-xs font-semibold text-slate-700 transition-all"
                 >
-                  👤 teammate2@fot.ruh.ac.lk
+                  <div className="flex items-center space-x-2">
+                    <span className="w-6 h-6 rounded-full bg-amber-600 text-white text-[10px] flex items-center justify-center font-bold">N</span>
+                    <span>Nipuna Deshan (ndsf999cyber1@gmail.com)</span>
+                  </div>
+                  <span className="text-[10px] text-blue-600 font-mono">Connect</span>
                 </button>
               </div>
             </div>
